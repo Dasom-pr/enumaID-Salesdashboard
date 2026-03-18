@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ENUMA BD Pipeline Dashboard 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+/* HEADER */
+.header { background: linear-gradient(135deg, #1e293b, #0f172a); padding: 16px 28px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 1.3rem; font-weight: 700; color: #f8fafc; }
+.header h1 span { color: #38bdf8; }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.header-meta { font-size: 0.72rem; color: #94a3b8; text-align: right; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+.btn-primary { background: #38bdf8; color: #0f172a; }
+.btn-primary:hover { background: #7dd3fc; }
+.btn-danger { background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 4px 8px; font-size: 0.7rem; border-radius: 5px; }
+.btn-danger:hover { background: #ef4444; color: white; }
+.btn-sm { padding: 5px 10px; font-size: 0.72rem; }
+
+/* NAV TABS (view modes) */
+.nav-bar { background: #0f172a; padding: 0 28px; border-bottom: 2px solid #334155; display: flex; gap: 0; }
+.nav-tab { padding: 12px 22px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; color: #64748b; transition: all 0.2s; margin-bottom: -2px; }
+.nav-tab.active { color: #f8fafc; border-bottom-color: #38bdf8; background: #1e293b; border-radius: 8px 8px 0 0; }
+.nav-tab:hover:not(.active) { color: #94a3b8; }
+
+/* SNAPSHOT TABS */
+.snap-bar { background: #1e293b; padding: 0 28px; border-bottom: 1px solid #334155; display: flex; gap: 4px; }
+.snap-tab { padding: 8px 16px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; color: #64748b; transition: all 0.2s; }
+.snap-tab.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+.snap-tab:hover:not(.active) { color: #94a3b8; }
+
+/* MAIN */
+.main { padding: 24px 28px; max-width: 1600px; margin: 0 auto; }
+.view { display: none; }
+.view.active { display: block; }
+
+/* KPI CARDS */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.kpi-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+.kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px; }
+.kpi-value { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+.kpi-sub { font-size: 0.72rem; color: #64748b; margin-top: 6px; }
+.kpi-bar { margin-top: 10px; height: 5px; background: #334155; border-radius: 3px; overflow: hidden; }
+.kpi-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+
+.c-blue { color: #38bdf8; } .c-green { color: #4ade80; } .c-yellow { color: #fbbf24; } .c-purple { color: #a78bfa; } .c-red { color: #f87171; }
+
+/* CHART CARDS */
+.charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+.charts-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.chart-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+.chart-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #94a3b8; margin-bottom: 14px; }
+
+/* TABLE */
+.table-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+.table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.table-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #94a3b8; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filter-select { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
+.filter-select:focus { outline: none; border-color: #38bdf8; }
+table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+thead th { text-align: left; padding: 8px 10px; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; border-bottom: 1px solid #334155; position: sticky; top: 0; background: #1e293b; z-index: 1; }
+tbody tr { border-bottom: 1px solid #1a2234; transition: background 0.15s; }
+tbody tr:hover { background: #263348; }
+tbody td { padding: 9px 10px; color: #cbd5e1; vertical-align: middle; }
+.table-scroll { overflow-x: auto; max-height: 460px; overflow-y: auto; }
+.tr { text-align: right; }
+
+/* BADGES */
+.badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+.b-lg { background: #1e3a5f; color: #7dd3fc; }
+.b-sc { background: #1a3347; color: #6ee7b7; }
+.b-mo { background: #2d1b69; color: #c4b5fd; }
+.b-ng { background: #1c2b1e; color: #86efac; }
+.b-cs { background: #2d1c0e; color: #fcd34d; }
+.s-contracted { color: #4ade80; font-weight: 700; }
+.s-payment { color: #34d399; font-weight: 700; }
+.s-budgeted { color: #fbbf24; }
+.s-work { color: #94a3b8; }
+.s-new { color: #a78bfa; }
+.s-dropped { color: #f87171; }
+.s-custom { color: #38bdf8; font-style: italic; }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+.modal h2 { font-size: 1rem; font-weight: 700; color: #f8fafc; margin-bottom: 20px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-field.full { grid-column: span 2; }
+.form-field label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
+.form-field input, .form-field select { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 8px 10px; border-radius: 7px; font-size: 0.82rem; }
+.form-field input:focus, .form-field select:focus { outline: none; border-color: #38bdf8; }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.btn-ghost { background: transparent; border: 1px solid #334155; color: #94a3b8; }
+.btn-ghost:hover { border-color: #94a3b8; color: #e2e8f0; }
+
+/* SECTION TITLE for distributor/region views */
+.section-title { font-size: 1rem; font-weight: 700; color: #f8fafc; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+.section-stat { font-size: 0.78rem; font-weight: 400; color: #64748b; }
+
+/* DISTRIBUTOR / REGION LIST */
+.dist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.dist-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px; }
+.dist-name { font-size: 0.85rem; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+.dist-meta { font-size: 0.7rem; color: #64748b; margin-bottom: 10px; }
+.dist-bar-wrap { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
+.dist-bar-fill { height: 100%; border-radius: 3px; background: #38bdf8; }
+.dist-numbers { display: flex; justify-content: space-between; font-size: 0.72rem; }
+.dist-forecast { color: #f8fafc; font-weight: 600; }
+.dist-status { color: #64748b; }
+
+/* SEARCH */
+.search-input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 6px 12px; border-radius: 6px; font-size: 0.78rem; width: 180px; }
+.search-input:focus { outline: none; border-color: #38bdf8; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <h1>ENUMA <span>BD Pipeline Dashboard</span> 2026</h1>
+    <div style="font-size:0.68rem;color:#475569;margin-top:2px;">디스트리뷰터 매출 트래커 — 목표 vs 파이프라인 진행 현황</div>
+  </div>
+  <div class="header-right">
+    <div class="header-meta">
+      <div>연간 목표: <strong style="color:#f8fafc">Rp 16,010,000,000</strong></div>
+      <div style="margin-top:2px;color:#475569">업데이트: 2026년 3월</div>
+    </div>
+    <button class="btn btn-primary" onclick="openAddModal()">＋ 딜 추가</button>
+  </div>
+</div>
+
+<!-- NAV (view modes) -->
+<div class="nav-bar">
+  <div class="nav-tab active" onclick="switchView('dashboard', this)">📊 대시보드</div>
+  <div class="nav-tab" onclick="switchView('distributor', this)">🏢 디스트리뷰터별</div>
+  <div class="nav-tab" onclick="switchView('region', this)">🗺 지역별</div>
+</div>
+
+<!-- SNAPSHOT TABS (dashboard only) -->
+<div class="snap-bar" id="snapBar">
+  <div class="snap-tab active" onclick="switchSnapshot('jan', this)">1월 스냅샷</div>
+  <div class="snap-tab" onclick="switchSnapshot('feb', this)">2월 스냅샷</div>
+  <div class="snap-tab" onclick="switchSnapshot('diff', this)">1월 vs 2월</div>
+</div>
+
+<div class="main">
+
+<!-- ═══════════════════════════════ VIEW: DASHBOARD ═══════════════════════════════ -->
+<div class="view active" id="view-dashboard">
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">2026 연간 목표</div>
+      <div class="kpi-value c-blue">Rp 16.01B</div>
+      <div class="kpi-sub">8개 팀 · Alvan · Adi · Ade · Ala · Ari · Ammar · Yus · Tabitha</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">총 파이프라인</div>
+      <div class="kpi-value c-yellow" id="kpi-pipeline">—</div>
+      <div class="kpi-sub" id="kpi-pipeline-sub">—</div>
+      <div class="kpi-bar"><div class="kpi-bar-fill" id="kpi-bar-pipeline" style="background:#fbbf24"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">파이프라인 달성률</div>
+      <div class="kpi-value c-green" id="kpi-coverage">—</div>
+      <div class="kpi-sub">파이프라인 / 목표</div>
+      <div class="kpi-bar"><div class="kpi-bar-fill" id="kpi-bar-coverage" style="background:#4ade80"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">계약 완료 / 수령</div>
+      <div class="kpi-value c-purple" id="kpi-confirmed">—</div>
+      <div class="kpi-sub" id="kpi-confirmed-sub">계약 완료 + 수령 완료</div>
+      <div class="kpi-bar"><div class="kpi-bar-fill" id="kpi-bar-confirmed" style="background:#a78bfa"></div></div>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title" id="trend-title">월별 매출 예측 (IDR)</div>
+      <div style="position:relative;height:230px"><canvas id="chartTrend"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">카테고리별 분류</div>
+      <div style="position:relative;height:230px"><canvas id="chartCategory"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-row-3">
+    <div class="chart-card" style="grid-column:span 2">
+      <div class="chart-title">팀별 — 목표 vs 파이프라인</div>
+      <div style="position:relative;height:200px"><canvas id="chartTeam"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">딜 상태별 현황</div>
+      <div style="position:relative;height:200px"><canvas id="chartStatus"></canvas></div>
+    </div>
+  </div>
+
+  <!-- PIPELINE TABLE -->
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">파이프라인 상세 — <span id="snap-label">1월 스냅샷</span></div>
+      <div class="filters">
+        <input class="search-input" id="searchInput" placeholder="🔍 클라이언트 / 파트너 검색..." oninput="renderTable()">
+        <select class="filter-select" id="filterCat" onchange="renderTable()">
+          <option value="">전체 카테고리</option>
+          <option value="LOCAL GOV">지방정부</option>
+          <option value="SCHOOL">학교</option>
+          <option value="MOE">교육부 / DIKDASMEN</option>
+          <option value="NGO">NGO / 보조금</option>
+          <option value="CSR">CSR</option>
+        </select>
+        <select class="filter-select" id="filterStat" onchange="renderTable()">
+          <option value="">전체 상태</option>
+          <option value="Contracted">계약 완료</option>
+          <option value="Payment received">수령 완료</option>
+          <option value="Budget-ed">예산 확보</option>
+          <option value="Work on budget">예산 검토 중</option>
+          <option value="New approach">신규 접근</option>
+        </select>
+        <select class="filter-select" id="filterPartner" onchange="renderTable()">
+          <option value="">전체 파트너</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th style="width:36px">#</th>
+          <th>Client / Region</th>
+          <th>파트너 (디스트리뷰터)</th>
+          <th>카테고리</th>
+          <th>지역</th>
+          <th class="tr">라이선스 수</th>
+          <th class="tr">예상 매출 (IDR)</th>
+          <th>상태</th>
+          <th style="width:60px">관리</th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:0.7rem;color:#475569;display:flex;justify-content:space-between">
+      <span id="table-count"></span>
+      <span id="table-total" style="color:#94a3b8;font-weight:600"></span>
+    </div>
+  </div>
+</div><!-- /dashboard -->
+
+<!-- ═══════════════════════════════ VIEW: BY DISTRIBUTOR ════════════════════════════ -->
+<div class="view" id="view-distributor">
+  <div class="section-title">
+    디스트리뷰터별
+    <div style="display:flex;gap:10px;align-items:center">
+      <input class="search-input" id="distSearch" placeholder="🔍 디스트리뷰터 검색..." oninput="renderDistView()">
+      <span class="section-stat" id="dist-stat"></span>
+    </div>
+  </div>
+  <div class="chart-card" style="margin-bottom:20px">
+    <div class="chart-title">디스트리뷰터별 파이프라인 (IDR)</div>
+    <div style="position:relative;height:320px"><canvas id="chartDist"></canvas></div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">디스트리뷰터 요약</div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>디스트리뷰터 / 파트너</th>
+          <th class="tr">딜 수</th>
+          <th class="tr">총 라이선스</th>
+          <th class="tr">총 예상 매출 (IDR)</th>
+          <th>주요 상태</th>
+          <th>담당 지역</th>
+        </tr></thead>
+        <tbody id="distTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div><!-- /distributor -->
+
+<!-- ═══════════════════════════════ VIEW: BY REGION ════════════════════════════════ -->
+<div class="view" id="view-region">
+  <div class="section-title">
+    지역별
+    <span class="section-stat" id="region-stat"></span>
+  </div>
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">지역별 파이프라인 (IDR)</div>
+      <div style="position:relative;height:280px"><canvas id="chartRegion"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">지역별 비율</div>
+      <div style="position:relative;height:280px"><canvas id="chartRegionDoughnut"></canvas></div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">지역별 분류</div>
+      <select class="filter-select" id="filterRegion" onchange="renderRegionTable()">
+        <option value="">전체 지역</option>
+      </select>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>지역</th>
+          <th>클라이언트</th>
+          <th>파트너</th>
+          <th class="tr">예상 매출 (IDR)</th>
+          <th>상태</th>
+        </tr></thead>
+        <tbody id="regionTableBody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:0.7rem;color:#475569" id="region-table-count"></div>
+  </div>
+</div><!-- /region -->
+
+</div><!-- /main -->
+
+<!-- ═══ ADD DEAL MODAL ═══ -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <h2>＋ 신규 딜 추가</h2>
+    <div class="form-grid">
+      <div class="form-field full">
+        <label>클라이언트 / 지역명 *</label>
+        <input id="f-client" placeholder="예) Kab. Banyuwangi">
+      </div>
+      <div class="form-field">
+        <label>파트너 (디스트리뷰터) *</label>
+        <input id="f-partner" placeholder="예) CV TIRTA">
+      </div>
+      <div class="form-field">
+        <label>카테고리 *</label>
+        <select id="f-cat">
+          <option value="LOCAL GOV">지방정부</option>
+          <option value="SCHOOL">학교 영업</option>
+          <option value="MOE">교육부 / DIKDASMEN</option>
+          <option value="NGO">NGO / 보조금</option>
+          <option value="CSR">CSR</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>지역 *</label>
+        <select id="f-region">
+          <option value="Sulawesi">Sulawesi</option>
+          <option value="Papua">Papua</option>
+          <option value="Kalimantan">Kalimantan</option>
+          <option value="NTB">NTB (Lombok)</option>
+          <option value="NTT">NTT (Flores/Timor)</option>
+          <option value="Sumatra">Sumatra</option>
+          <option value="Jawa">Jawa</option>
+          <option value="Maluku/Halmahera">Maluku/Halmahera</option>
+          <option value="Bali">Bali</option>
+          <option value="National">National</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>예상 라이선스 수</label>
+        <input id="f-lic" type="number" placeholder="예) 200" min="0">
+      </div>
+      <div class="form-field">
+        <label>예상 매출 (IDR)</label>
+        <input id="f-forecast" type="number" placeholder="예) 200000000" min="0">
+      </div>
+      <div class="form-field">
+        <label>상태</label>
+        <select id="f-status">
+          <option value="Work on budget">예산 검토 중</option>
+          <option value="Budget-ed">예산 확보</option>
+          <option value="New approach">신규 접근</option>
+          <option value="Contracted">계약 완료</option>
+          <option value="Payment received">수령 완료</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>담당자 (팀)</label>
+        <select id="f-pic">
+          <option value="">—</option>
+          <option value="Alvan">Alvan</option>
+          <option value="Adi">Adi</option>
+          <option value="Ade">Ade</option>
+          <option value="Ala">Ala</option>
+          <option value="Ari">Ari</option>
+          <option value="Ammar">Ammar</option>
+          <option value="Yus">Yus</option>
+          <option value="Tabitha">Tabitha</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveDeal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── BASE DATA ────────────────────────────────────────────────────────────────
+const TOTAL_TARGET = 16010000000;
+const TEAM_TARGETS = [
+  {team:'Alvan', target:3300000000}, {team:'Adi', target:2200000000},
+  {team:'Ade',   target:260000000},  {team:'Ala', target:1400000000},
+  {team:'Ari',   target:2650000000}, {team:'Ammar',target:1300000000},
+  {team:'Yus',   target:1500000000}, {team:'Tabitha',target:3400000000},
+];
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','Mei','Jun','Q3','Q4'];
+const MONTHLY_JAN  = [0,0,1350000000,7066000000,260000000,1637500000,1885000000,5121000000];
+const MONTHLY_FEB  = [0,0,1350000000,7066000000,260000000,1637500000,1885000000,4903000000];
+
+// Deals — base data with region field added
+const BASE_DEALS = [
+  {no:1,  client:'Kota Makassar',           partner:'CV KEENAN',           cat:'LOCAL GOV',lic:300, forecast:300000000,  status:'Work on budget',  pic:'Yus',    region:'Sulawesi'},
+  {no:2,  client:'Kab. Gowa (Keenan)',      partner:'CV KEENAN',           cat:'LOCAL GOV',lic:0,   forecast:0,          status:'Work on budget',  pic:'Yus',    region:'Sulawesi'},
+  {no:3,  client:'Kota Enrekang',           partner:'CV KEENAN',           cat:'LOCAL GOV',lic:500, forecast:500000000,  status:'Work on budget',  pic:'Yus',    region:'Sulawesi'},
+  {no:4,  client:'Kab. Toraja Utara',       partner:'CV KEENAN',           cat:'LOCAL GOV',lic:200, forecast:200000000,  status:'Work on budget',  pic:'Yus',    region:'Sulawesi'},
+  {no:5,  client:'Kab. Gowa (Tirta)',       partner:'CV TIRTA',            cat:'LOCAL GOV',lic:125, forecast:125000000,  status:'Contracted',      pic:'Ala',    region:'Sulawesi'},
+  {no:6,  client:'Kab. Jeneponto',          partner:'CV TIRTA',            cat:'LOCAL GOV',lic:125, forecast:125000000,  status:'Payment received', pic:'Ala',   region:'Sulawesi'},
+  {no:7,  client:'Kab. Halmahera Timur',    partner:'CV TIRTA',            cat:'LOCAL GOV',lic:900, forecast:900000000,  status:'Work on budget',  pic:'Alvan',  region:'Maluku/Halmahera'},
+  {no:8,  client:'Kab. Selayar',            partner:'CV TIRTA',            cat:'LOCAL GOV',lic:125, forecast:125000000,  status:'Work on budget',  pic:'Ala',    region:'Sulawesi'},
+  {no:9,  client:'Kab. Sidrap',             partner:'PROPERTY 21',         cat:'LOCAL GOV',lic:250, forecast:250000000,  status:'Work on budget',  pic:'Ala',    region:'Sulawesi'},
+  {no:10, client:'Kota Pare-pare',          partner:'PROPERTY 21',         cat:'LOCAL GOV',lic:250, forecast:250000000,  status:'Work on budget',  pic:'Ala',    region:'Sulawesi'},
+  {no:11, client:'Kota Palopo',             partner:'PROPERTY 21/KEENAN',  cat:'LOCAL GOV',lic:250, forecast:250000000,  status:'Work on budget',  pic:'Ala',    region:'Sulawesi'},
+  {no:12, client:'Kab. Luwu',              partner:'PROPERTY 21',         cat:'LOCAL GOV',lic:250, forecast:250000000,  status:'Work on budget',  pic:'Ala',    region:'Sulawesi'},
+  {no:13, client:'Kab. Soppeng',            partner:'PROPERTY 21',         cat:'LOCAL GOV',lic:375, forecast:375000000,  status:'Work on budget',  pic:'Ala',    region:'Sulawesi'},
+  {no:14, client:'Kab. Maros',             partner:'PROPERTY 21',         cat:'LOCAL GOV',lic:250, forecast:250000000,  status:'Budget-ed',       pic:'Ala',    region:'Sulawesi'},
+  {no:15, client:'Kab. Sorong Selatan',     partner:'DIS - ANDREAS',       cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:16, client:'Kab. Kaimana',            partner:'DIS - ANDREAS',       cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:17, client:'Kab. Fakfak',             partner:'DIS - ANDREAS',       cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:18, client:'Kab. Raja Ampat',         partner:'DIS - ANDREAS',       cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:19, client:'Kab. Mappi',              partner:'DIS - ANDREAS',       cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:20, client:'Kab. Asmat',              partner:'DIS - ANDREAS',       cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:21, client:'Kab. Lanny Jaya',         partner:'DIS - ANDREAS',       cat:'LOCAL GOV',lic:200, forecast:200000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:22, client:'Kota Sorong',             partner:'DIS - ANDREAS',       cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:23, client:'Kab. Maybrat',            partner:'DIS - ANDREAS',       cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:24, client:'Kab. Tambrauw',           partner:'DIS - ANDREAS',       cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:25, client:'Kab. Ketapang',           partner:'MIKAIL SATI',         cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Ammar',  region:'Kalimantan'},
+  {no:26, client:'Kab. Bintuni',            partner:'MIKAIL SATI',         cat:'LOCAL GOV',lic:150, forecast:150000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+  {no:27, client:'Kab. Puncak',             partner:'MIKAIL SATI',         cat:'LOCAL GOV',lic:180, forecast:180000000,  status:'New approach',    pic:'Ammar',  region:'Papua'},
+  {no:28, client:'Kota Jayapura',           partner:'MIKAIL SATI',         cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'New approach',    pic:'Ammar',  region:'Papua'},
+  {no:29, client:'Kab. Jayapura',           partner:'MIKAIL SATI',         cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'New approach',    pic:'Ammar',  region:'Papua'},
+  {no:30, client:'Kab. Keerom',             partner:'MIKAIL SATI',         cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'New approach',    pic:'Ammar',  region:'Papua'},
+  {no:31, client:'Kab. Mimika',             partner:'MIKAIL SATI',         cat:'LOCAL GOV',lic:0,   forecast:0,          status:'New approach',    pic:'Ammar',  region:'Papua'},
+  {no:32, client:'Kab. Siak',              partner:'CV JABAL RAHMAH',     cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Budget-ed',       pic:'Ari',    region:'Sumatra'},
+  {no:33, client:'Kab. Bengkalis',          partner:'CV JABAL RAHMAH',     cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Budget-ed',       pic:'Ari',    region:'Sumatra'},
+  {no:34, client:'Kota Dumai',              partner:'CV JABAL RAHMAH',     cat:'LOCAL GOV',lic:0,   forecast:0,          status:'Work on budget',  pic:'Ari',    region:'Sumatra'},
+  {no:35, client:'Kab. Indragiri Hilir',    partner:'CV JABAL RAHMAH',     cat:'LOCAL GOV',lic:0,   forecast:0,          status:'Work on budget',  pic:'Ari',    region:'Sumatra'},
+  {no:36, client:'Kab. Indragiri Hulu',     partner:'CV JABAL RAHMAH',     cat:'LOCAL GOV',lic:0,   forecast:0,          status:'Work on budget',  pic:'Ari',    region:'Sumatra'},
+  {no:37, client:'Kab. Pesisir Selatan',    partner:'CV JABAL RAHMAH',     cat:'LOCAL GOV',lic:840, forecast:840000000,  status:'Budget-ed',       pic:'Ari',    region:'Sumatra'},
+  {no:38, client:'Kota Pariaman',           partner:'CV JABAL RAHMAH',     cat:'LOCAL GOV',lic:0,   forecast:0,          status:'Work on budget',  pic:'Ari',    region:'Sumatra'},
+  {no:39, client:'Kab. Manggarai',          partner:'HARRISMA',            cat:'LOCAL GOV',lic:174, forecast:174000000,  status:'Work on budget',  pic:'Alvan',  region:'NTT'},
+  {no:40, client:'Kab. Nagekeo',            partner:'HARRISMA',            cat:'LOCAL GOV',lic:120, forecast:120000000,  status:'Work on budget',  pic:'Alvan',  region:'NTT'},
+  {no:41, client:'Kab. Sika',              partner:'HARRISMA',            cat:'LOCAL GOV',lic:90,  forecast:90000000,   status:'Work on budget',  pic:'Alvan',  region:'NTT'},
+  {no:42, client:'Kota Singkawang',         partner:'MKP',                 cat:'LOCAL GOV',lic:56,  forecast:56000000,   status:'Work on budget',  pic:'Alvan',  region:'Kalimantan'},
+  {no:43, client:'Kab. Mempawah',           partner:'MKP',                 cat:'LOCAL GOV',lic:200, forecast:240000000,  status:'Work on budget',  pic:'Alvan',  region:'Kalimantan'},
+  {no:44, client:'Kab. Kubu Raya',          partner:'MKP',                 cat:'LOCAL GOV',lic:100, forecast:120000000,  status:'Work on budget',  pic:'Alvan',  region:'Kalimantan'},
+  {no:45, client:'Prov. Kalimantan Barat',  partner:'MKP',                 cat:'LOCAL GOV',lic:100, forecast:100000000,  status:'Work on budget',  pic:'Alvan',  region:'Kalimantan'},
+  {no:46, client:'Kab. Lombok Tengah',      partner:'AGUNG',               cat:'LOCAL GOV',lic:142, forecast:142000000,  status:'Work on budget',  pic:'Adi',    region:'NTB'},
+  {no:47, client:'Kab. Lombok Timur',       partner:'AGUNG',               cat:'LOCAL GOV',lic:150, forecast:150000000,  status:'Work on budget',  pic:'Adi',    region:'NTB'},
+  {no:48, client:'Kota Mataram',            partner:'AGUNG',               cat:'LOCAL GOV',lic:360, forecast:360000000,  status:'Work on budget',  pic:'Adi',    region:'NTB'},
+  {no:49, client:'Kab. Badung',             partner:'AGUNG',               cat:'LOCAL GOV',lic:285, forecast:285000000,  status:'Work on budget',  pic:'Adi',    region:'Bali'},
+  {no:50, client:'Kab. Lombok Barat',       partner:'AGUNG',               cat:'LOCAL GOV',lic:300, forecast:300000000,  status:'Budget-ed',       pic:'Adi',    region:'NTB'},
+  {no:51, client:'Kab. Lombok Utara',       partner:'AGUNG',               cat:'LOCAL GOV',lic:300, forecast:300000000,  status:'Work on budget',  pic:'Adi',    region:'NTB'},
+  {no:52, client:'Kab. Dompu',              partner:'NN',                  cat:'LOCAL GOV',lic:0,   forecast:0,          status:'Work on budget',  pic:'Adi',    region:'NTB'},
+  {no:53, client:'Kab. Manggarai Barat',    partner:'CV PUTRA DANGE JAYA', cat:'LOCAL GOV',lic:180, forecast:180000000,  status:'Budget-ed',       pic:'Alvan',  region:'NTT'},
+  {no:54, client:'Kab. Ngada',              partner:'CV PUTRA DANGE JAYA', cat:'LOCAL GOV',lic:180, forecast:180000000,  status:'Work on budget',  pic:'Alvan',  region:'NTT'},
+  {no:55, client:'Kab. Manggarai Timur',    partner:'CV PUTRA DANGE JAYA', cat:'LOCAL GOV',lic:270, forecast:270000000,  status:'Work on budget',  pic:'Alvan',  region:'NTT'},
+  {no:56, client:'Kab. Karawang',           partner:'CV ARDI',             cat:'LOCAL GOV',lic:240, forecast:240000000,  status:'Work on budget',  pic:'Ade',    region:'Jawa'},
+  {no:57, client:'Kota Bontang',            partner:'DIGICARE',            cat:'LOCAL GOV',lic:0,   forecast:0,          status:'Work on budget',  pic:'',       region:'Kalimantan'},
+  {no:58, client:'Kab. Subang',             partner:'DIGICARE',            cat:'LOCAL GOV',lic:270, forecast:270000000,  status:'New approach',    pic:'',       region:'Jawa'},
+  {no:59, client:'Kab. Kutai Timur',        partner:'ANDI OFFSET',         cat:'LOCAL GOV',lic:1000,forecast:1000000000, status:'Work on budget',  pic:'Alvan',  region:'Kalimantan'},
+  {no:60, client:'TDF (Treasury Deposit)',  partner:'PT SEN',              cat:'LOCAL GOV',lic:0,   forecast:0,          status:'Work on budget',  pic:'',       region:'National'},
+  {no:62, client:'Yayasan Dharma Putri',    partner:'SHAKTAVISI',          cat:'SCHOOL',   lic:0,   forecast:0,          status:'Contracted',      pic:'Ari',    region:'Jawa'},
+  {no:63, client:'Muhammadiyah Sang Pencerah',partner:'SHAKTAVISI',        cat:'SCHOOL',   lic:0,   forecast:0,          status:'Contracted',      pic:'Ari',    region:'National'},
+  {no:64, client:'Sekolah Swasta Makassar', partner:'CV TIRTA',            cat:'SCHOOL',   lic:1000,forecast:525000000,  status:'Work on budget',  pic:'Yus',    region:'Sulawesi'},
+  {no:65, client:'Ar-Rafi School Bandung',  partner:'HARRISMA',            cat:'SCHOOL',   lic:200, forecast:105000000,  status:'New approach',    pic:'Alvan',  region:'Jawa'},
+  {no:66, client:'Yayasan BOPKRI',          partner:'HARRISMA',            cat:'SCHOOL',   lic:0,   forecast:0,          status:'New approach',    pic:'Alvan',  region:'Jawa'},
+  {no:67, client:'Sekolah Cikal',           partner:'HARRISMA',            cat:'SCHOOL',   lic:500, forecast:262500000,  status:'New approach',    pic:'Alvan',  region:'Jawa'},
+  {no:68, client:'Yayasan Ursulin',         partner:'CV PUTRA DANGE JAYA', cat:'SCHOOL',   lic:350, forecast:183750000,  status:'New approach',    pic:'Alvan',  region:'NTT'},
+  {no:69, client:'Yayasan St. Yosefa',      partner:'CV PUTRA DANGE JAYA', cat:'SCHOOL',   lic:350, forecast:183750000,  status:'New approach',    pic:'Alvan',  region:'NTT'},
+  {no:70, client:'Yayasan Tunas Unggul',    partner:'DIGICARE',            cat:'SCHOOL',   lic:100, forecast:52500000,   status:'Work on budget',  pic:'',       region:'Jawa'},
+  {no:71, client:'Rumah Pendidikan (MoE)',  partner:'IKM',                 cat:'MOE',      lic:0,   forecast:3400000000, status:'Work on budget',  pic:'Tabitha',region:'National'},
+  {no:72, client:'Grantee Program',         partner:'THF',                 cat:'NGO',      lic:0,   forecast:0,          status:'Work on budget',  pic:'',       region:'National'},
+  {no:73, client:'Muhammadiyah',            partner:'ENUMA INDONESIA',     cat:'NGO',      lic:0,   forecast:500000000,  status:'Work on budget',  pic:'',       region:'National'},
+  {no:74, client:'PT GMP (via THF)',        partner:'ENUMA INDONESIA',     cat:'CSR',      lic:0,   forecast:0,          status:'Work on budget',  pic:'',       region:'National'},
+  {no:75, client:'Kaltim Prima Coal (KPC)', partner:'ANDI OFFSET',         cat:'CSR',      lic:0,   forecast:0,          status:'New approach',    pic:'Alvan',  region:'Kalimantan'},
+  {no:76, client:'PT GAG NIKEL (SW Papua)', partner:'ENUMA INDONESIA',     cat:'CSR',      lic:260, forecast:260000000,  status:'Work on budget',  pic:'Ammar',  region:'Papua'},
+];
+
+// ─── LOCALSTORAGE CUSTOM DEALS ────────────────────────────────────────────────
+function loadCustomDeals() {
+  try { return JSON.parse(localStorage.getItem('enuma_custom_deals') || '[]'); } catch { return []; }
+}
+function saveCustomDeals(arr) {
+  localStorage.setItem('enuma_custom_deals', JSON.stringify(arr));
+}
+function loadDeletedNos() {
+  try { return JSON.parse(localStorage.getItem('enuma_deleted_nos') || '[]'); } catch { return []; }
+}
+function saveDeletedNos(arr) {
+  localStorage.setItem('enuma_deleted_nos', JSON.stringify(arr));
+}
+
+function getAllDeals() {
+  const deleted = loadDeletedNos();
+  const custom  = loadCustomDeals();
+  return [...BASE_DEALS.filter(d => !deleted.includes(d.no)), ...custom];
+}
+
+function deleteDeal(no, isCustom) {
+  if (!confirm('이 딜을 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.')) return;
+  if (isCustom) {
+    const arr = loadCustomDeals().filter(d => d.no !== no);
+    saveCustomDeals(arr);
+  } else {
+    const arr = loadDeletedNos();
+    if (!arr.includes(no)) arr.push(no);
+    saveDeletedNos(arr);
+  }
+  refreshAll();
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let currentView     = 'dashboard';
+let currentSnapshot = 'jan';
+let charts          = {};
+
+function getDeals()   { return getAllDeals(); }
+function getMonthly() { return currentSnapshot === 'feb' ? MONTHLY_FEB : MONTHLY_JAN; }
+
+// ─── FORMAT ──────────────────────────────────────────────────────────────────
+function fmtIDR(v) {
+  if (!v || v === 0) return '—';
+  if (v >= 1e9)  return 'Rp ' + (v/1e9).toFixed(2) + 'B';
+  if (v >= 1e6)  return 'Rp ' + (v/1e6).toFixed(0) + 'M';
+  return 'Rp ' + v.toLocaleString();
+}
+function fmtShort(v) {
+  if (v >= 1e9) return (v/1e9).toFixed(1)+'B';
+  if (v >= 1e6) return (v/1e6).toFixed(0)+'M';
+  return v;
+}
+const CAT_BADGE = {
+  'LOCAL GOV':'<span class="badge b-lg">지방정부</span>',
+  'SCHOOL'   :'<span class="badge b-sc">학교</span>',
+  'MOE'      :'<span class="badge b-mo">교육부</span>',
+  'NGO'      :'<span class="badge b-ng">NGO</span>',
+  'CSR'      :'<span class="badge b-cs">CSR</span>',
+};
+const STAT_CLASS = {
+  'Contracted'      :'s-contracted',
+  'Payment received':'s-payment',
+  'Budget-ed'       :'s-budgeted',
+  'Work on budget'  :'s-work',
+  'New approach'    :'s-new',
+  'Dropped'         :'s-dropped',
+};
+const REGION_COLORS = ['#38bdf8','#4ade80','#a78bfa','#fbbf24','#f87171','#34d399','#fb923c','#e879f9','#94a3b8','#6ee7b7'];
+const STAT_KO = {'Contracted':'계약 완료','Payment received':'수령 완료','Budget-ed':'예산 확보','Work on budget':'예산 검토 중','New approach':'신규 접근','Dropped':'중단'};
+
+// ─── VIEW SWITCH ─────────────────────────────────────────────────────────────
+function switchView(view, el) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.getElementById('snapBar').style.display = view === 'dashboard' ? '' : 'none';
+  currentView = view;
+  if (view === 'distributor') renderDistView();
+  if (view === 'region')      renderRegionView();
+}
+
+function switchSnapshot(snap, el) {
+  document.querySelectorAll('.snap-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentSnapshot = snap;
+  updateDashboard();
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+function updateDashboard() {
+  updateKPI();
+  updateTrendChart();
+  updateCategoryChart();
+  updateTeamChart();
+  updateStatusChart();
+  renderTable();
+}
+
+function updateKPI() {
+  const deals     = getDeals();
+  const total     = deals.reduce((s,d) => s + (d.forecast||0), 0);
+  const confirmed = deals.filter(d => d.status==='Contracted'||d.status==='Payment received').reduce((s,d)=>s+d.forecast,0);
+  const pct       = (total/TOTAL_TARGET*100).toFixed(1);
+  document.getElementById('kpi-pipeline').textContent = fmtIDR(total);
+  document.getElementById('kpi-pipeline-sub').textContent = (currentSnapshot==='feb'?'2월':'1월') + ' 스냅샷 · '+deals.length+'건';
+  document.getElementById('kpi-coverage').textContent = pct + '%';
+  const covPct = parseFloat(pct);
+  document.getElementById('kpi-coverage').className = 'kpi-value ' + (covPct>=100?'c-green':covPct>=80?'c-yellow':'c-red');
+  document.getElementById('kpi-confirmed').textContent = fmtIDR(confirmed);
+  document.getElementById('kpi-bar-pipeline').style.width  = Math.min(100, total/TOTAL_TARGET*100)+'%';
+  document.getElementById('kpi-bar-coverage').style.width  = Math.min(100, covPct)+'%';
+  document.getElementById('kpi-bar-confirmed').style.width = Math.min(100, confirmed/TOTAL_TARGET*100)+'%';
+}
+
+function buildChart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id).getContext('2d'), config);
+}
+
+function updateTrendChart() {
+  const isCompare = currentSnapshot === 'diff';
+  const datasets = isCompare
+    ? [
+        {label:'Jan',data:MONTHLY_JAN,backgroundColor:'rgba(56,189,248,0.65)',borderColor:'#38bdf8',borderWidth:1,borderRadius:4},
+        {label:'Feb',data:MONTHLY_FEB,backgroundColor:'rgba(251,191,36,0.65)', borderColor:'#fbbf24',borderWidth:1,borderRadius:4},
+      ]
+    : [{label:'Forecast',data:getMonthly(),
+        backgroundColor:getMonthly().map(v=>v>0?'rgba(56,189,248,0.7)':'rgba(56,189,248,0.15)'),
+        borderColor:'#38bdf8',borderWidth:1,borderRadius:4}];
+  document.getElementById('trend-title').textContent =
+    '월별 매출 예측 — ' + (isCompare?'1월 vs 2월':currentSnapshot==='feb'?'2월':'1월') + ' 스냅샷 (IDR)';
+  buildChart('chartTrend',{
+    type:'bar',data:{labels:MONTH_LABELS,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:isCompare,labels:{color:'#94a3b8',font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{label:c=>' Rp '+(c.raw/1e9).toFixed(3)+'B'}}},
+      scales:{
+        x:{grid:{color:'#1a2234'},ticks:{color:'#94a3b8',font:{size:10}}},
+        y:{grid:{color:'#334155'},ticks:{color:'#94a3b8',font:{size:9},callback:v=>'Rp '+fmtShort(v)}}
+      }
+    }
+  });
+}
+
+function updateCategoryChart() {
+  const deals = getDeals();
+  const cats = {'LOCAL GOV':0,'SCHOOL':0,'MOE':0,'NGO':0,'CSR':0};
+  deals.forEach(d=>{if(cats[d.cat]!==undefined)cats[d.cat]+=(d.forecast||0);});
+  buildChart('chartCategory',{
+    type:'doughnut',
+    data:{labels:['지방정부','학교','교육부','NGO/보조금','CSR'],
+          datasets:[{data:Object.values(cats),backgroundColor:['#38bdf8','#4ade80','#a78bfa','#86efac','#fcd34d'],borderColor:'#0f172a',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:10},padding:8,boxWidth:10}},
+        tooltip:{callbacks:{label:c=>' '+fmtIDR(c.raw)+' ('+((c.raw/Object.values(cats).reduce((a,b)=>a+b,0))*100).toFixed(1)+'%)'}}}
+    }
+  });
+}
+
+function updateTeamChart() {
+  const deals   = getDeals();
+  const pipMap  = {};
+  TEAM_TARGETS.forEach(t=>pipMap[t.team]=0);
+  deals.forEach(d=>{if(d.pic&&pipMap[d.pic]!==undefined)pipMap[d.pic]+=(d.forecast||0);});
+  const pipeline = TEAM_TARGETS.map(t=>pipMap[t.team]);
+  buildChart('chartTeam',{
+    type:'bar',
+    data:{labels:TEAM_TARGETS.map(t=>t.team),datasets:[
+      {label:'목표',  data:TEAM_TARGETS.map(t=>t.target),backgroundColor:'rgba(100,116,139,0.4)',borderColor:'#64748b',borderWidth:1,borderRadius:4},
+      {label:'파이프라인',data:pipeline,backgroundColor:pipeline.map((v,i)=>{
+        const r=v/TEAM_TARGETS[i].target;
+        return r>=1?'rgba(74,222,128,0.75)':r>=0.8?'rgba(251,191,36,0.75)':'rgba(248,113,113,0.75)';
+      }),borderColor:'transparent',borderWidth:0,borderRadius:4},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#94a3b8',font:{size:10},boxWidth:10}},
+        tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+fmtIDR(c.raw)}},},
+      scales:{
+        x:{grid:{color:'#1a2234'},ticks:{color:'#94a3b8',font:{size:10}}},
+        y:{grid:{color:'#334155'},ticks:{color:'#94a3b8',font:{size:9},callback:v=>'Rp '+fmtShort(v)}}
+      }
+    }
+  });
+}
+
+function updateStatusChart() {
+  const deals  = getDeals();
+  const map    = {};
+  deals.forEach(d=>{map[d.status]=(map[d.status]||0)+(d.forecast||0);});
+  const order  = ['Payment received','Contracted','Budget-ed','Work on budget','New approach'];
+  const KO_STAT = {'Payment received':'수령 완료','Contracted':'계약 완료','Budget-ed':'예산 확보','Work on budget':'예산 검토 중','New approach':'신규 접근'};
+  const labels = order.filter(s=>map[s]!==undefined).map(s=>KO_STAT[s]||s);
+  const data   = order.filter(s=>map[s]!==undefined).map(s=>map[s]||0);
+  const SCOL   = {'수령 완료':'#34d399','계약 완료':'#4ade80','예산 확보':'#fbbf24','예산 검토 중':'#64748b','신규 접근':'#a78bfa'};
+  buildChart('chartStatus',{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:labels.map(s=>SCOL[s]||'#64748b'),borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmtIDR(c.raw)}}},
+      scales:{
+        x:{grid:{color:'#334155'},ticks:{color:'#94a3b8',font:{size:9},callback:v=>fmtShort(v)}},
+        y:{grid:{display:false},ticks:{color:'#94a3b8',font:{size:10}}}
+      }
+    }
+  });
+}
+
+function renderTable() {
+  const deals   = getDeals();
+  const deleted = loadDeletedNos();
+  const customNos = loadCustomDeals().map(d=>d.no);
+  const catF    = document.getElementById('filterCat').value;
+  const statF   = document.getElementById('filterStat').value;
+  const partF   = document.getElementById('filterPartner').value;
+  const search  = (document.getElementById('searchInput').value||'').toLowerCase();
+  const snap    = currentSnapshot === 'feb' ? '2월' : '1월';
+  document.getElementById('snap-label').textContent = snap + ' 스냅샷';
+
+  const filtered = deals.filter(d=>
+    (!catF  || d.cat===catF) &&
+    (!statF || d.status===statF) &&
+    (!partF || d.partner===partF) &&
+    (!search|| (d.client+d.partner).toLowerCase().includes(search))
+  );
+  const total = filtered.reduce((s,d)=>s+(d.forecast||0),0);
+  document.getElementById('table-count').textContent = `${filtered.length} / ${deals.length}건 표시`;
+  document.getElementById('table-total').textContent = '소계: ' + fmtIDR(total);
+
+  const isCustom = d => customNos.includes(d.no);
+  document.getElementById('tableBody').innerHTML = filtered.map(d=>`
+    <tr>
+      <td style="color:#475569">${d.no}${isCustom(d)?'<span style="color:#38bdf8;font-size:0.6rem">★</span>':''}</td>
+      <td>${d.client}</td>
+      <td style="color:#7dd3fc">${d.partner}</td>
+      <td>${CAT_BADGE[d.cat]||d.cat}</td>
+      <td style="color:#64748b;font-size:0.72rem">${d.region||'—'}</td>
+      <td class="tr" style="color:#94a3b8">${d.lic>0?d.lic.toLocaleString():'—'}</td>
+      <td class="tr" style="font-weight:${d.forecast>0?600:400};color:${d.forecast>0?'#f8fafc':'#475569'}">${fmtIDR(d.forecast)}</td>
+      <td class="${STAT_CLASS[d.status]||''}${isCustom(d)?' s-custom':''}">${STAT_KO[d.status]||d.status}</td>
+      <td><button class="btn btn-danger" onclick="deleteDeal(${d.no},${isCustom(d)})">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function initPartnerFilter() {
+  const sel  = document.getElementById('filterPartner');
+  const opts = [...new Set(BASE_DEALS.map(d=>d.partner))].sort();
+  opts.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+}
+
+// ─── DISTRIBUTOR VIEW ────────────────────────────────────────────────────────
+function renderDistView() {
+  const deals   = getDeals();
+  const search  = (document.getElementById('distSearch').value||'').toLowerCase();
+  const map     = {};
+  deals.forEach(d=>{
+    const k = d.partner;
+    if (!map[k]) map[k]={partner:k,deals:0,lic:0,forecast:0,statuses:{},regions:new Set()};
+    map[k].deals++;
+    map[k].lic += (d.lic||0);
+    map[k].forecast += (d.forecast||0);
+    map[k].statuses[d.status] = (map[k].statuses[d.status]||0)+1;
+    if (d.region) map[k].regions.add(d.region);
+  });
+  let rows = Object.values(map).sort((a,b)=>b.forecast-a.forecast);
+  if (search) rows = rows.filter(r=>r.partner.toLowerCase().includes(search));
+  const maxF = rows[0]?.forecast||1;
+  document.getElementById('dist-stat').textContent = rows.length + '개 디스트리뷰터 · 합계 ' + fmtIDR(rows.reduce((s,r)=>s+r.forecast,0));
+
+  // chart
+  buildChart('chartDist',{
+    type:'bar',
+    data:{labels:rows.slice(0,15).map(r=>r.partner),datasets:[{
+      data:rows.slice(0,15).map(r=>r.forecast),
+      backgroundColor:rows.slice(0,15).map((_,i)=>REGION_COLORS[i%REGION_COLORS.length]+'bb'),
+      borderRadius:4
+    }]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmtIDR(c.raw)}}},
+      scales:{
+        x:{grid:{color:'#334155'},ticks:{color:'#94a3b8',font:{size:9},callback:v=>fmtShort(v)}},
+        y:{grid:{display:false},ticks:{color:'#94a3b8',font:{size:10}}}
+      }
+    }
+  });
+
+  // table
+  document.getElementById('distTableBody').innerHTML = rows.map(r=>{
+    const topStat = Object.entries(r.statuses).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+    return `<tr>
+      <td style="color:#f8fafc;font-weight:600">${r.partner}</td>
+      <td class="tr">${r.deals}</td>
+      <td class="tr">${r.lic>0?r.lic.toLocaleString():'—'}</td>
+      <td class="tr" style="font-weight:600;color:${r.forecast>0?'#f8fafc':'#475569'}">${fmtIDR(r.forecast)}</td>
+      <td class="${STAT_CLASS[topStat]||''}">${STAT_KO[topStat]||topStat}</td>
+      <td style="color:#64748b;font-size:0.72rem">${[...r.regions].join(', ')||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── REGION VIEW ─────────────────────────────────────────────────────────────
+function renderRegionView() {
+  const deals = getDeals();
+  const map   = {};
+  deals.forEach(d=>{
+    const r = d.region||'Other';
+    if (!map[r]) map[r]={region:r,total:0,deals:[]};
+    map[r].total += (d.forecast||0);
+    map[r].deals.push(d);
+  });
+  const rows = Object.values(map).sort((a,b)=>b.total-a.total);
+  document.getElementById('region-stat').textContent = rows.length + '개 지역';
+
+  // populate filter
+  const sel = document.getElementById('filterRegion');
+  sel.innerHTML = '<option value="">All Regions</option>';
+  rows.forEach(r=>{const o=document.createElement('option');o.value=r.region;o.textContent=r.region+' — '+fmtIDR(r.total);sel.appendChild(o);});
+
+  // bar chart
+  buildChart('chartRegion',{
+    type:'bar',
+    data:{labels:rows.map(r=>r.region),datasets:[{
+      data:rows.map(r=>r.total),
+      backgroundColor:rows.map((_,i)=>REGION_COLORS[i%REGION_COLORS.length]+'bb'),
+      borderRadius:4
+    }]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmtIDR(c.raw)}}},
+      scales:{
+        x:{grid:{color:'#334155'},ticks:{color:'#94a3b8',font:{size:9},callback:v=>fmtShort(v)}},
+        y:{grid:{display:false},ticks:{color:'#94a3b8',font:{size:10}}}
+      }
+    }
+  });
+
+  // doughnut
+  buildChart('chartRegionDoughnut',{
+    type:'doughnut',
+    data:{labels:rows.map(r=>r.region),datasets:[{
+      data:rows.map(r=>r.total),
+      backgroundColor:rows.map((_,i)=>REGION_COLORS[i%REGION_COLORS.length]),
+      borderColor:'#0f172a',borderWidth:2
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+      plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:9},padding:6,boxWidth:8}},
+        tooltip:{callbacks:{label:c=>' '+fmtIDR(c.raw)}}}
+    }
+  });
+
+  renderRegionTable();
+}
+
+function renderRegionTable() {
+  const deals    = getDeals();
+  const regionF  = document.getElementById('filterRegion').value;
+  const filtered = deals.filter(d=>(!regionF||d.region===regionF) && d.forecast>0);
+  const sorted   = filtered.sort((a,b)=>(b.forecast||0)-(a.forecast||0));
+  document.getElementById('regionTableBody').innerHTML = sorted.map(d=>`
+    <tr>
+      <td style="color:#64748b;font-size:0.72rem">${d.region||'—'}</td>
+      <td>${d.client}</td>
+      <td style="color:#7dd3fc">${d.partner}</td>
+      <td class="tr" style="font-weight:600;color:#f8fafc">${fmtIDR(d.forecast)}</td>
+      <td class="${STAT_CLASS[d.status]||''}">${STAT_KO[d.status]||d.status}</td>
+    </tr>
+  `).join('');
+  document.getElementById('region-table-count').textContent = sorted.length + '건 (예상 매출 있음)';
+}
+
+// ─── ADD DEAL MODAL ───────────────────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('addModal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('addModal').classList.remove('open');
+  ['f-client','f-partner','f-lic','f-forecast'].forEach(id=>document.getElementById(id).value='');
+}
+function saveDeal() {
+  const client   = document.getElementById('f-client').value.trim();
+  const partner  = document.getElementById('f-partner').value.trim();
+  if (!client || !partner) { alert('클라이언트명과 파트너명은 필수 입력 항목입니다.'); return; }
+  const custom = loadCustomDeals();
+  const maxNo  = Math.max(...BASE_DEALS.map(d=>d.no), ...custom.map(d=>d.no), 99);
+  custom.push({
+    no:      maxNo + 1,
+    client,
+    partner,
+    cat:     document.getElementById('f-cat').value,
+    region:  document.getElementById('f-region').value,
+    lic:     parseInt(document.getElementById('f-lic').value)||0,
+    forecast:parseFloat(document.getElementById('f-forecast').value)||0,
+    status:  document.getElementById('f-status').value,
+    pic:     document.getElementById('f-pic').value,
+  });
+  saveCustomDeals(custom);
+  closeModal();
+  refreshAll();
+}
+
+// ─── REFRESH ALL ─────────────────────────────────────────────────────────────
+function refreshAll() {
+  if (currentView === 'dashboard')   updateDashboard();
+  if (currentView === 'distributor') renderDistView();
+  if (currentView === 'region')      renderRegionView();
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  initPartnerFilter();
+  updateDashboard();
+});
+
+// close modal on backdrop click
+document.getElementById('addModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('addModal')) closeModal();
+});
+</script>
+</body>
+</html>
