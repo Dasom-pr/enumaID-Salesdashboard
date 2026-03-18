@@ -135,3 +135,22 @@ git push
 - [ ] 디스트리뷰터별 매출 보기 개선
 - [ ] 지역별 매출 보기 기능 완성
 - [ ] 실제 CSV 데이터를 대시보드에서 업로드/연동하는 기능
+
+---
+
+## 작업 방식 (Preferred Working Style)
+- 수정 후 항상 GitHub push까지 완료할 것
+- 루트 `index.html`과 `sales-dashboard/index.html` 항상 동시에 업데이트할 것
+- 한국어로 소통, 코드(변수명·주석·UI 텍스트)는 영어로 작성
+- 기능 추가 전 반드시 **테스트 케이스를 먼저 작성**하고, 테스트를 통과하는 방향으로 구현할 것 (Test-Driven Development)
+  - 예: 새 KPI 카드 추가 → 예상 출력값 먼저 정의 → 그에 맞게 로직 구현 → 브라우저에서 검증
+- 기능 단위로 커밋하고, 커밋 메시지는 변경 내용을 명확히 서술할 것
+
+---
+
+## 알려진 이슈 & 주의사항
+- ⚠️ **루트 index.html 누락 주의:** `sales-dashboard/index.html`만 수정하면 GitHub Pages에 반영 안 됨. 루트 파일도 반드시 함께 업데이트
+- ⚠️ **GitHub 토큰 노출 금지:** 토큰을 파일에 포함하면 GitHub Push Protection이 자동 차단함. 토큰은 절대 코드/파일에 기록하지 말 것
+- ⚠️ **CSV 데이터 하드코딩:** 현재 딜 데이터는 `index.html` 내부 JS에 하드코딩되어 있음 (CSV 파일 직접 연동 아님). 데이터 변경 시 JS 코드 내 `BASE_DEALS` 배열을 직접 수정해야 함
+- ⚠️ **GitHub Pages 배포 딜레이:** push 후 실제 반영까지 1~5분 소요. 배포 상태는 https://github.com/Dasom-pr/enumaID-Salesdashboard/actions 에서 확인
+- ⚠️ **브라우저 캐시:** 배포 완료 후에도 이전 버전이 보일 수 있음. `Ctrl+Shift+R` 로 강제 새로고침 필요
